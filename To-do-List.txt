@@ -1,0 +1,11 @@
+
+Lista de cosas pendientes en el proyecto
+
+1. Leer las imagenes BMP y mostrarlas en la pantalla
+
+  - Se debe leer el encabezado y la paleta de colores
+  - Usar las interrupciones para pintar en la pantalla los colores
+  - 
+
+
+2. para hacer el menu, ver el video numero 6
