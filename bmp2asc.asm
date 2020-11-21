@@ -123,25 +123,9 @@ EvalLineCommand Proc Far
 			cmp cl,'b'
 			jz  getBMP
 
-			cmp cl,'c'
-			jz  getPassword
-
-			cmp cl,'t'
-			jz  getText
 		getBMP:
 			lea di,bmp
 			add si,4
-			jmp saveParam
-		getPassword:
-			lea di,password
-			add si,2
-			jmp saveParam
-		getText:
-			lea di,text
-			inc di
-			inc textSize
-			add si,2
-			mov dx,1h
 			jmp saveParam
 		saveParam:
 			mov cl,[si]
@@ -191,7 +175,7 @@ inicio:
 		push  	es
 		mov   	ax,SDato                ;Inicializa el seg de datos        
 		push  	ax
-		push  	ax;
+		push  	ax
 		pop   	ds;
 		pop   	es;
 		
@@ -200,8 +184,40 @@ inicio:
 		mov		ah,00
 		mov 	al,12h
 		int 	10h
+		
+		call 	OpenFile
+		;call createFile
+		call 	ReadHeader
+		call 	ReadPal
+		;call writeFile
+		cmp 	instruction,'a'
+		je		a
+		cmp 	instruction,'r' ; por ahora pruebo con r aunque la idea es que lo despliegue normal
+		je		r
+		
+		a:
+			;call desesteg
+			jmp	 finish
+		r:
+			;call esteg
+			jmp  finish
+		
+		finish:
+			call	movePointer
+			call	showBMP
+			mov		bx,filehandle
+			call	closeFile
 
-	exit
+			; Wait for key press
+			mov	ah,1
+			int	21h    
+		  
+			call   modeWrite
+			jmp	   exit
+
+wrongCommand:                        ;Si el usuario digita un parametro erroneo entonces no entra a ningun cmp y cae aqui
+		mov	dx,offset error0          ;Mueve al dx el desplazamiento del msj que quiero imprimir
+		jmp	print                          ;y salta a la etiqueta print para que lo imprima
 
 
 End inicio 
