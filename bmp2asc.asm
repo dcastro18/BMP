@@ -17,8 +17,6 @@ SPila EndS
 
 SDato Segment para public 'Data'
 
-	
-	
 	;------PARAMETROS QUE RECIBEN
 		bmp         		 db    	0FFh Dup (?)
 		archivo     		 db    	'archivo.txt'
@@ -28,17 +26,15 @@ SDato Segment para public 'Data'
 		textSize			 db	  	00
 		LineCommand          db    	0FFh Dup (?)
 
-		;------MENSAJES PARA GUIA DE USUARIO /?
+	;------MENSAJES PARA GUIA DE USUARIO /?
 		info0  				db    	10,13,'-------------------->GUIA DE USUARIO<---------------------------'
 		info1  				db    	10,13,'Bienvenido a la guia de usuario:',10,13
 		info2  				db    	10,13,'-> Para convertir la imagen a Ascii el formato es el siguiente:'   
-		info3  				db    	10,13,'        /a /bmp:archivo.bmp /archivo:archivo.text',10,13
+		info3  				db    	10,13,'        /a /bmp:archivo.bmp',10,13
 		info4  				db    	10,13,'-> Para girar la imagen el formato es el siguiente:'
-		info5  				db    	10,13,'        /d /bmp:archivo.bmp',10,13
-		info6  				db    	10,13,'    -mensaje = el mensaje a encriptar.'    
-		info7  				db    	10,13,'    -archivo = el nombre del archivo .txt que se utilizara.'
-		info8  				db    	10,13,'    -bmp     = el nombre del archivo .bmp que se utilizara.'      
-		info9  				db    	10,13,'----------------------------------------------------------------',10,13,'$'
+		info5  				db    	10,13,'        /d /bmp:archivo.bmp',10,13   
+		info6  				db    	10,13,'        -bmp = el nombre del archivo .bmp que se utilizara.'      
+		info7 				db    	10,13,'----------------------------------------------------------------',10,13,'$'
 		error0 				db    	10,13,'Comando incorrecto, digite /? o /h o /H para mas ayuda.$'
 	
 		msgInvBMP   		db 		"Archivo BMP invalido.$"
@@ -58,10 +54,11 @@ SCodigo Segment para public 'Code'
 		Assume CS:SCodigo, SS:SPila, DS:SDato
 
 
-showInfo Proc far                     ;Esta etiqueta mueve al muestra la guia de usuario.
+;------ MUESTRA LA GUIA DE USUARIO
+
+showInfo Proc far                    
 		lea	dx,info0                  ;Mueve al dx el desplazamiento del msj que quiero mostrar en este caso la guia de usuario
-		;jmp	print                     ;y salta a la etiqueta print para que imprima el msj
-		print
+		jmp	print                     ;y salta a la etiqueta print para que imprima el msj
 showInfo EndP
 
 
@@ -85,25 +82,124 @@ GetCommanderLine EndP
 
 
 
+;------ EALUA CADA PARAMETRO
+
+EvalLineCommand Proc Far
+		mov	cl,[si]       			;mueve al cl el caracter a evaluar
+
+		cmp	cl,'a'
+		jz 	saveInstruction
+		cmp	cl,'r'
+		jz		saveInstruction
+		cmp	cl,'i'
+		jz		saveInstruction
+		cmp	cl,'d'
+		jz		saveInstruction
+		cmp	cl,'?'
+		jz 	showInfo
+		cmp	cl,'h'
+		jz		showInfo
+		cmp	cl,'H'
+		jz  	showInfo
+
+		lea	dx,error0
+		jmp	print
+		saveInstruction:
+			lea	di, instruction
+			mov	[di],cl
+			inc	si
+			jmp	readMore
+		readMore:
+			mov	cl,[si]      		;mueve al cl el caracter a evaluar
+			cmp cl,' '
+			jz  ignore
+			cmp cl,'/'
+			jz  getParam
+		getParam:
+			xor dx,dx
+			inc si
+			mov cl,[si] 
+
+			cmp cl,'b'
+			jz  getBMP
+
+			cmp cl,'c'
+			jz  getPassword
+
+			cmp cl,'t'
+			jz  getText
+		getBMP:
+			lea di,bmp
+			add si,4
+			jmp saveParam
+		getPassword:
+			lea di,password
+			add si,2
+			jmp saveParam
+		getText:
+			lea di,text
+			inc di
+			inc textSize
+			add si,2
+			mov dx,1h
+			jmp saveParam
+		saveParam:
+			mov cl,[si]
+			cmp cl,10
+			jz  done
+			cmp cl,13
+			jz  done
+			cmp cl,'/'
+			jz  getParam
+			mov [di],cl
+			inc si
+			inc di
+			cmp dx,1h
+			jne	saveParam
+			inc textSize
+			jmp saveParam
+		ignore:
+			inc si
+			jmp readMore
+		done:
+			ret
+EvalLineCommand EndP
+
 ;------ABRE EL ARCHIVO 
 
 openFile proc                      
 		mov	ah,3dh
-		mov	al,02h                     ;establece el modo de abrir 
+		mov	al,02h                   ;establece el modo de abrir 
 		lea	dx,bmp                   ;señala la direccion donde esta el nombre
 		int	21h
 		mov	dx, offset error4
-		jc prueba
+		jc print
 		mov	bx,ax
 		mov	filehandle,ax
 		ret
 openFile endp
 
+
 inicio:
-	mov		Ax,Seg LineCommand   
-	push	Ax
-	lea		Ax,LineCommand	
-	push  	Ax
+		Mov		Ax,Seg LineCommand   
+		Push	Ax
+		Lea		Ax,LineCommand
+		Push  	Ax
+
+		call	GetCommanderLine
+		push  	es                          ;Guarda el psps
+		push  	es
+		mov   	ax,SDato                ;Inicializa el seg de datos        
+		push  	ax
+		push  	ax;
+		pop   	ds;
+		pop   	es;
+		
+		lea 	si,LineCommand
+		call 	EvalLineCommand
+		mov		ah,00
+		mov 	al,12h
+		int 	10h
 
 	exit
 
