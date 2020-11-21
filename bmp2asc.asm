@@ -5,8 +5,8 @@
 
 ;------------------------------------------------------------------------------
 
-
 include macroBMP.cbc
+extrn  print:Far,modeWrite:Far,exit:Far
 
 SPila Segment para Stack 'Stack'
      db 64 Dup ('SegStack ')

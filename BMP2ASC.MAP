@@ -1,9 +1,0 @@
-
- Start  Stop   Length Name               Class
-
- 00000H 0023FH 00240H SPILA              STACK
- 00240H 00913H 006D4H SDATO              DATA
- 00920H 00961H 00042H SCODIGO            CODE
-
-Program entry point at 0092:0035
-
