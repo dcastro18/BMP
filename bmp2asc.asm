@@ -64,9 +64,25 @@ showInfo Proc far                     ;Esta etiqueta mueve al muestra la guia de
 		print
 showInfo EndP
 
-prueba Proc far
-	print
-prueba EndP
+
+;------ LEE LA LINEA DE PARAMETROS
+
+GetCommanderLine Proc Near
+		LongLC	EQU		80h                           ;apunta a la direccion del tamano de la linea de comandos(en 80h estara el tamano)
+		ListPush <Es, Di, Si, Cx, Bp>      
+		Mov	Bp,Sp 
+		Mov	Di,12[Bp]                                 ;Cantidad de caracteres que va a llevar esa palabra (carga el desplazamiento)
+		Mov	Ax,14[Bp]                                 ;La linea de arriba y abajo es para apuntar a la variable Es:Di (carga el segmento)
+		Mov	Es,Ax      
+		Xor	Cx,Cx                                     ;Limpio el cx para que no haya basura
+		Mov	Cl,Byte Ptr Ds:[LongLC]                   ;Uso el cl porque el maximo es de 255 entonces asi encaja
+		Mov	Si,3[LongLC]                              ;apunta al primer caracter, dos = uno por la posición 81h y uno más por el espacio en blanco, ahora lo cambie a 3 para no evaluar el /
+		Rep	Movsb                                     ;Agarra cada caracter , y lo copia en Di:Es para que quede en LineCommand
+		ListPop <Bp, Bx, Si, Di, Es>
+		Ret   
+GetCommanderLine EndP
+
+
 
 
 ;------ABRE EL ARCHIVO 
