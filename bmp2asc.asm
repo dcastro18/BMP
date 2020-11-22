@@ -45,7 +45,18 @@ SDato Segment para public 'Data'
 		error4     	        db  	'No se pudo abrir$'
 		filehandle 		    dw 		?
 		txthandle		    dw		?
-		prueba 				db 		"Esta es la prueba.$",10,13
+		
+	;----- VARIABLES DEL BMP
+	
+		Header				label 	word
+		HeadBuff    		db 		54 dup('H')
+		palBuff     		db 		1024 dup('P')
+		ScrLine     		db 		640 dup(0)
+		BMPStart    		db 		'BM'
+
+		PalSize     		dw 		?
+		BMPHeight   		dw 		?
+		BMPWidth    		dw 		?
 
 SDato EndS
 
@@ -165,6 +176,39 @@ openFile proc
 openFile endp
 
 
+;================ LEE EL ENCABEZADO DEL BMP ================
+
+ReadHeader proc							
+		mov	ah,3fh
+		mov	cx,54
+		mov	dx,offset Header
+		int	21h
+
+		jc		RHdone					     ; Si no se leyeron los 54 bytes del encabezado, terminar.
+
+		mov	ax,header[0Ah]        	; AX = Desplazamiento de la direccion donde comienza la imagen
+
+		sub	ax,54                       	; Restar la longitud del encabezado de la imagen
+
+		; Dividir el resultado entre 4
+		shr 	ax,1
+		shr 	ax,1
+		mov	PalSize,ax					; Obtener el numero de colores del BMP
+		
+		; Guardar el ancho del BMP en BMPWidth
+		mov	ax,header[12h]
+		mov	BMPWidth,ax      
+		
+		; Guardar la altura del BMP en BMPHeight
+		mov	ax,header[16h]    
+		mov	BMPHeight,ax 
+
+		RHdone:
+			ret
+			
+ReadHeader endp
+
+
 inicio:
 		Mov		Ax,Seg LineCommand   
 		Push	Ax
@@ -190,7 +234,7 @@ inicio:
 		call 	OpenFile
 		; ;call createFile
 		call 	ReadHeader
-		call 	ReadPal
+		;call 	ReadPal
 		;call writeFile
 		cmp 	instruction,'a'
 		je		a
@@ -211,10 +255,10 @@ inicio:
 			jmp  finish
 		
 		finish:
-			call	movePointer
+			;call	movePointer
 			call	showBMP
 			mov		bx,filehandle
-			call	closeFile
+			;call	closeFile
 
 			; Wait for key press
 			mov	ah,1
