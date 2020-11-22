@@ -45,6 +45,7 @@ SDato Segment para public 'Data'
 		error4     	        db  	'No se pudo abrir$'
 		filehandle 		    dw 		?
 		txthandle		    dw		?
+		prueba 				db 		"Esta es la prueba.$",10,13
 
 SDato EndS
 
@@ -96,7 +97,7 @@ EvalLineCommand Proc Far
 		cmp	cl,'d'
 		jz		saveInstruction
 		cmp	cl,'?'
-		jz 	showInfo
+		jz 		showInfo
 		cmp	cl,'h'
 		jz		showInfo
 		cmp	cl,'H'
@@ -184,9 +185,10 @@ inicio:
 		mov		ah,00
 		mov 	al,12h
 		int 	10h
+
 		
 		call 	OpenFile
-		;call createFile
+		; ;call createFile
 		call 	ReadHeader
 		call 	ReadPal
 		;call writeFile
@@ -199,7 +201,13 @@ inicio:
 			;call desesteg
 			jmp	 finish
 		r:
-			;call esteg
+			;call inverso
+			jmp  finish
+		d:
+			;call giroDer
+			jmp  finish
+		l:
+			;call giroIzq
 			jmp  finish
 		
 		finish:
@@ -213,7 +221,7 @@ inicio:
 			int	21h    
 		  
 			call   modeWrite
-			jmp	   exit
+		 	jmp	   exit
 
 wrongCommand:                        ;Si el usuario digita un parametro erroneo entonces no entra a ningun cmp y cae aqui
 		mov	dx,offset error0          ;Mueve al dx el desplazamiento del msj que quiero imprimir

@@ -9,3 +9,7 @@ Lista de cosas pendientes en el proyecto
 
 
 2. para hacer el menu, ver el video numero 6
+
+
+tengo que agarrar cada color, y convertirlo a ascii (buscar un convertidor de hex 
+a ascii)
