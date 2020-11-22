@@ -30,6 +30,9 @@ SDato Segment para public 'Data'
 		BMPHeight   		dw 		?
 		BMPWidth    		dw 		?
 
+		gg 					db      'bm$'
+		
+
 	;------PARAMETROS QUE RECIBEN
 		bmp         		 db    	0FFh Dup (?)
 		archivo     		 db    	'archivo.txt'
@@ -114,6 +117,8 @@ EvalLineCommand Proc Far
 		jz		showInfo
 		cmp	cl,'H'
 		jz  	showInfo
+		cmp	cl,'p'
+		jz  	saveInstruction
 
 		lea	dx,error0
 		jmp	print
@@ -246,7 +251,7 @@ ReadPal proc
 			; BGR y no como RGB
 
 			; Obtener el valor para el rojo
-			mov	 al,[si+2]
+			mov	 al,[si]
 			; El maximo es 255, pero el modo de video solamente
 			; permite valores hasta 63, por lo tanto dividimos 
 			; entre 4 para obtener un valor valido
@@ -261,7 +266,7 @@ ReadPal proc
 			; Mandar el valor del verde por el puerto
 			out	 dx,al
 			; Obtener el valor para el azul
-			mov	 al,[si]
+			mov	 al,[si+2]
 			shr	 al,1
 			shr	 al,1
 			; Enviarlo por el puerto
@@ -279,20 +284,179 @@ ReadPal endp
 movePointer proc
 		mov	ah,42h
 		mov	al,00
+		mov	filehandle,bx
 		mov	dx,76h
 		int	21h
-		mov	filehandle,bx
+		;mov	filehandle,bx
 		mov	dx, offset error2   
 		jc 	print
 		ret
 movePointer endp
 
 
+; --- PINTA LA IMAGEN
+; showBMP proc 
+; 		mov	cx,BMPHeight 
+; 		PrintBMPLoop:
+; 			dec	 cx
+; 			push cx
+
+; 			mov	    ah,3fh
+; 			mov	    bx,filehandle
+; 			mov	    cx,BMPWidth
+; 			mov	    dx,offset ScrLine
+; 			int	    21h
+			
+; 			mov	    si,offset ScrLine
+; 			pop	    dx	
+; 			mov	    cx,0
+; 			call	showLine
+; 			dec	    dx
+; 			cmp     cx,0
+; 			jz 	    ret1
+			
+; 			mov	    cx,0
+; 			call	showLine
+; 			push	dx
+; 			pop		cx
+; 			cmp		cx,0
+; 			jne 	PrintBMPLoop
+; 		ret1:
+; 			ret
+; showBMP endp 
+
+; showLine proc
+; 		mov	    ah,0ch              ;Modo pintar un pixel en cierta coordenada
+; 		mov	    al,[si]
+; 		push    ax
+; 		and		al,00001111b
+; 		int		10h
+
+; 		inc		cx
+; 		pop		ax
+; 		and		al,11110000b        ;agarra e l
+; 		shr		al,4                 
+; 		int		10h                 
+
+; 		inc		cx
+; 		inc		si
+; 		cmp		cx,BMPWidth
+; 		jne		showLine
+; 		ret
+; showLine endp
+
+showBMPInv proc ; --- 	INVERTIDOOOO FUNCIONA
+		mov	cx,0
+		PrintBMPINVLoop:
+			inc	 cx
+			push cx
+
+			mov	    ah,3fh
+			mov	    bx,filehandle
+			mov	    cx,BMPWidth
+			mov	    dx,offset ScrLine
+			int	    21h
+			
+			mov	    si,offset ScrLine
+			pop	    dx	
+			mov	    cx,0
+			call	showLineInv
+			inc	    dx
+			cmp     cx,0
+			jz 	    ret1
+			
+			mov	    cx,0
+			call	showLineInv
+			push	dx
+			pop		cx
+			cmp		cx,BMPHeight 
+			jne 	PrintBMPINVLoop
+		ret1:
+			ret
+showBMPInv endp 
+
+showLineInv proc
+		mov	    ah,0ch              ;Modo pintar un pixel en cierta coordenada
+		mov	    al,[si]
+		push    ax
+		and		al,00001111b
+		int		10h
+
+		inc		cx
+		pop		ax
+		and		al,11110000b        ;agarra e l
+		shr		al,4                 
+		int		10h                 
+
+		inc		cx
+		inc		si
+		cmp		cx,BMPWidth
+		jne		showLineInv
+		ret
+showLineInv endp
+
+
+showBMPDer proc ; --- 	DERECHA
+		mov	cx,0 
+		PrintBMPDerLoop:
+			inc	 cx
+			;push cx
+
+			mov	    ah,3fh
+			mov	    bx,filehandle
+			mov	    cx,BMPWidth
+			mov	    dx,offset ScrLine
+			int	    21h
+			
+
+			mov	    si,offset ScrLine
+			pop	    dx
+			mov 	dx,0
+			call	showLineDer
+			inc	    cx
+
+			; cmp     cx,0
+			; jz 	    ret1
+			
+			mov 	dx,0
+			call	showLineDer
+			;push	dx
+
+
+			pop		cx
+			cmp		cx,BMPHeight
+			jne 	PrintBMPDerLoop
+showBMPDer endp 
+
+showLineDer proc
+		mov	    ah,0ch              ;Modo pintar un pixel en cierta coordenada
+		mov	    al,[si]
+		push    ax
+		and		al,00001111b
+		int		10h
+
+		inc		dx
+		pop		ax
+		and		al,11110000b        ;agarra e l
+		shr		al,4                 
+		int		10h                 
+
+		inc		dx
+
+		inc		si
+		cmp		dx,BMPWidth
+		jne		showLineDer
+		ret
+showLineDer endp
+
+
+
+
 inicio:
-		Mov		Ax,Seg LineCommand   
-		Push	Ax
-		Lea		Ax,LineCommand
-		Push  	Ax
+		mov		Ax,Seg LineCommand   
+		push	Ax
+		lea		Ax,LineCommand
+		push  	Ax
 
 		call	GetCommanderLine
 		push  	es                      ;Guarda el psps
@@ -311,7 +475,7 @@ inicio:
 
 		
 		call 	OpenFile
-		; ;call createFile
+		;call createFile
 		call 	ReadHeader
 		call 	ReadPal
 		;call writeFile
@@ -319,31 +483,44 @@ inicio:
 		je		a
 		cmp 	instruction,'r' ; por ahora pruebo con r aunque la idea es que lo despliegue normal
 		je		r
-		
+		cmp 	instruction,'d'
+		je		d
+		cmp 	instruction,'i'
+		je		i
+
 		a:
 			;call desesteg
+			
 			jmp	 finish
 		r:
-			;call inverso
-			jmp  finish
+			call   movePointer
+			call   showBMPInv
+			jmp    finish
 		d:
-			;call giroDer
-			jmp  finish
-		l:
+			call   movePointer
+			call   showBMPDer
+
+			jmp    finish
+		i:
 			;call giroIzq
 			jmp  finish
+		p:
+			;ImprimeMsg filehandle
+			mov ah,2
+			mov dl,65
+			int 21h
+
+			jmp  exit
 		
 		finish:
-			call	movePointer
-			;call	showBMP
-			;mov	bx,filehandle
-			;call	closeFile
+			mov	bx,filehandle
+			call	closeFile
 
 			; Wait for key press
 			mov	ah,1
 			int	21h    
 		  
-			;call   modeWrite
+			call   modeWrite
 		 	jmp	   exit
 
 wrongCommand:                        ;Si el usuario digita un parametro erroneo entonces no entra a ningun cmp y cae aqui
