@@ -24,6 +24,7 @@ SDato Segment para public 'Data'
 		HeadBuff    		db 		54 dup('H')
 		palBuff     		db 		1024 dup('P')
 		ScrLine     		db 		640 dup(0)
+		ScrLine2     		db 		480 dup(0)
 		BMPStart    		db 		'BM'
 
 		PalSize     		dw 		?
@@ -287,7 +288,6 @@ movePointer proc
 		mov	filehandle,bx
 		mov	dx,76h
 		int	21h
-		;mov	filehandle,bx
 		mov	dx, offset error2   
 		jc 	print
 		ret
@@ -345,6 +345,29 @@ movePointer endp
 ; 		ret
 ; showLine endp
 
+;------CIERRA EL ARCHIVO
+
+closeFile proc                    
+		mov	ah,3eh
+		int	21h
+		mov	dx, offset error3
+		jc 	print
+		ret
+closeFile endp
+
+;------CREA EL ARCHIVO
+
+createFile proc                  
+		mov	ah,3ch              
+		mov	cx,64d                     ;tipo de archivo
+		lea	dx,archivo                 ;puntero al nombre del archivo
+		int	21h 
+		mov	dx, offset error1          ;guarda en el dx el msj de error por si falla
+		jc 	print                      ;si la bandera de acarreo esta en 1 va a la etiqueta que muestra el error que esta en dx
+		mov	txthandle,ax               ;sino establece el handle
+		ret
+createFile endp
+
 showBMPInv proc ; --- 	INVERTIDOOOO FUNCIONA
 		mov	cx,0
 		PrintBMPINVLoop:
@@ -397,35 +420,38 @@ showLineInv endp
 
 
 showBMPDer proc ; --- 	DERECHA
-		mov	cx,0 
+	mov	cx,BMPHeight
 		PrintBMPDerLoop:
-			inc	 cx
-			;push cx
+			dec	 cx
+			push cx
 
 			mov	    ah,3fh
 			mov	    bx,filehandle
 			mov	    cx,BMPWidth
 			mov	    dx,offset ScrLine
 			int	    21h
+
 			
-
 			mov	    si,offset ScrLine
-			pop	    dx
-			mov 	dx,0
+			pop	    cx	
+			;mov	    cx,0
 			call	showLineDer
-			inc	    cx
-
+			
 			; cmp     cx,0
 			; jz 	    ret1
 			
-			mov 	dx,0
-			call	showLineDer
+			; mov	    cx,0
+			; call	showLineDer
 			;push	dx
 
 
-			pop		cx
-			cmp		cx,BMPHeight
+			;pop		cx
+			cmp		cx,0
 			jne 	PrintBMPDerLoop
+			je 		ret2
+
+		ret2:
+			ret		
 showBMPDer endp 
 
 showLineDer proc
@@ -435,19 +461,67 @@ showLineDer proc
 		and		al,00001111b
 		int		10h
 
-		inc		dx
+		dec		dx
 		pop		ax
 		and		al,11110000b        ;agarra e l
 		shr		al,4                 
 		int		10h                 
 
-		inc		dx
+		dec		dx
 
 		inc		si
-		cmp		dx,BMPWidth
+		cmp		dx,0
 		jne		showLineDer
 		ret
 showLineDer endp
+
+
+showBMPIzq proc ; --- 	DERECHA
+	mov	cx,0
+		PrintBMPIzqLoop:
+			inc	 cx
+			push cx
+
+			mov	    ah,3fh
+			mov	    bx,filehandle
+			mov	    cx,BMPWidth
+			mov	    dx,offset ScrLine
+			int	    21h
+
+			
+			mov	    si,offset ScrLine
+			pop	    cx	
+			call	showLineizq
+			
+			
+			cmp		cx,BMPHeight
+			jne 	PrintBMPIzqLoop
+			je 		ret3
+
+		ret3:
+			ret	
+showBMPIzq endp 
+
+showLineizq proc
+		mov	    ah,0ch              ;Modo pintar un pixel en cierta coordenada
+		mov	    al,[si]
+		push    ax
+		and		al,00001111b
+		int		10h
+
+		dec		dx
+		pop		ax
+		and		al,11110000b        ;agarra e l
+		shr		al,4                 
+		int		10h                 
+
+		dec		dx
+
+		inc		si
+		cmp		dx,0
+		jne		showLineizq
+		ret
+showLineizq endp
 
 
 
@@ -502,18 +576,13 @@ inicio:
 
 			jmp    finish
 		i:
-			;call giroIzq
-			jmp  finish
-		p:
-			;ImprimeMsg filehandle
-			mov ah,2
-			mov dl,65
-			int 21h
+			call   movePointer
+			call   showBMPIzq
 
-			jmp  exit
+			jmp    finish
 		
 		finish:
-			mov	bx,filehandle
+			mov		bx,filehandle
 			call	closeFile
 
 			; Wait for key press
