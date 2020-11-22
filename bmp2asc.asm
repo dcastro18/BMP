@@ -3,6 +3,12 @@
 
 ; David Castro H - 2018105813
 
+; Forma de compilacion:                      
+;    Usando el turbo assembler de borland 4.  
+;     - tasm /zi /l bmp2asc[.asm]  
+;     - tasm /zi /l procBMP[.asm]              
+;     - tlink /v bmp2asc + procBMP [.oobj]                 
+
 ;------------------------------------------------------------------------------
 
 include macroBMP.cbc
@@ -95,7 +101,6 @@ GetCommanderLine Proc Near
 		ListPop <Bp, Bx, Si, Di, Es>
 		Ret   
 GetCommanderLine EndP
-
 
 
 
@@ -248,11 +253,9 @@ ReadPal proc
 		; DX = 3C9h
 		inc	dx
 		sndLoop:
-			; Nota: los colores en un archivo BMP se guardan como
-			; BGR y no como RGB
-
+		
 			; Obtener el valor para el rojo
-			mov	 al,[si]
+			mov	 al,[si+2]
 			; El maximo es 255, pero el modo de video solamente
 			; permite valores hasta 63, por lo tanto dividimos 
 			; entre 4 para obtener un valor valido
@@ -267,7 +270,7 @@ ReadPal proc
 			; Mandar el valor del verde por el puerto
 			out	 dx,al
 			; Obtener el valor para el azul
-			mov	 al,[si+2]
+			mov	 al,[si]
 			shr	 al,1
 			shr	 al,1
 			; Enviarlo por el puerto
@@ -368,7 +371,9 @@ createFile proc
 		ret
 createFile endp
 
-showBMPInv proc ; --- 	INVERTIDOOOO FUNCIONA
+
+; --- 	GIROS
+showBMPInv proc 
 		mov	cx,0
 		PrintBMPINVLoop:
 			inc	 cx
@@ -563,8 +568,7 @@ inicio:
 		je		i
 
 		a:
-			;call desesteg
-			
+			;call ascii
 			jmp	 finish
 		r:
 			call   movePointer
@@ -593,8 +597,8 @@ inicio:
 		 	jmp	   exit
 
 wrongCommand:                        ;Si el usuario digita un parametro erroneo entonces no entra a ningun cmp y cae aqui
-		mov	dx,offset error0          ;Mueve al dx el desplazamiento del msj que quiero imprimir
-		jmp	print                          ;y salta a la etiqueta print para que lo imprima
+		mov	dx,offset error0         
+		jmp	print                     
 
 
 End inicio 
