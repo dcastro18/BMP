@@ -246,33 +246,46 @@ ReadPal proc
 			; BGR y no como RGB
 
 			; Obtener el valor para el rojo
-			mov	al,[si+2]
+			mov	 al,[si+2]
 			; El maximo es 255, pero el modo de video solamente
 			; permite valores hasta 63, por lo tanto dividimos 
 			; entre 4 para obtener un valor valido
-			shr	al,1
-			shr	al,1
+			shr	 al,1
+			shr	 al,1
 			; Mandar el valor del rojo por el puerto 3C9h
-			out	dx,al
+			out	 dx,al
 			; Obtener el valor para el verde
-			mov	al,[si+1]
-			shr	al,1
-			shr	al,1
+			mov	 al,[si+1]
+			shr	 al,1
+			shr	 al,1
 			; Mandar el valor del verde por el puerto
-			out	dx,al
+			out	 dx,al
 			; Obtener el valor para el azul
-			mov	al,[si]
-			shr	al,1
-			shr	al,1
+			mov	 al,[si]
+			shr	 al,1
+			shr	 al,1
 			; Enviarlo por el puerto
-			out	dx,al
+			out	 dx,al
 
 			; Apuntar al siguiente color
 			; (Hay un caracter nulo al final de cada color)
-			add	si,4
-			loop	sndLoop
+			add	 si,4
+			loop sndLoop
 		ret
 ReadPal endp
+
+;-- COLOCA EL PUNTERO PARA PINTAR
+
+movePointer proc
+		mov	ah,42h
+		mov	al,00
+		mov	dx,76h
+		int	21h
+		mov	filehandle,bx
+		mov	dx, offset error2   
+		jc 	print
+		ret
+movePointer endp
 
 
 inicio:
@@ -302,28 +315,28 @@ inicio:
 		call 	ReadHeader
 		call 	ReadPal
 		;call writeFile
-		; cmp 	instruction,'a'
-		; je		a
-		; cmp 	instruction,'r' ; por ahora pruebo con r aunque la idea es que lo despliegue normal
-		; je		r
+		cmp 	instruction,'a'
+		je		a
+		cmp 	instruction,'r' ; por ahora pruebo con r aunque la idea es que lo despliegue normal
+		je		r
 		
-		; a:
-		; 	;call desesteg
-		; 	jmp	 finish
-		; r:
-		; 	;call inverso
-		; 	jmp  finish
-		; d:
-		; 	;call giroDer
-		; 	jmp  finish
-		; l:
-		; 	;call giroIzq
-		; 	jmp  finish
+		a:
+			;call desesteg
+			jmp	 finish
+		r:
+			;call inverso
+			jmp  finish
+		d:
+			;call giroDer
+			jmp  finish
+		l:
+			;call giroIzq
+			jmp  finish
 		
 		finish:
-			;call	movePointer
+			call	movePointer
 			;call	showBMP
-			;mov		bx,filehandle
+			;mov	bx,filehandle
 			;call	closeFile
 
 			; Wait for key press
