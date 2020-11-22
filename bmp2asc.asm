@@ -17,6 +17,19 @@ SPila EndS
 
 SDato Segment para public 'Data'
 
+
+	;----- VARIABLES DEL BMP
+
+		Header				label 	word
+		HeadBuff    		db 		54 dup('H')
+		palBuff     		db 		1024 dup('P')
+		ScrLine     		db 		640 dup(0)
+		BMPStart    		db 		'BM'
+
+		PalSize     		dw 		?
+		BMPHeight   		dw 		?
+		BMPWidth    		dw 		?
+
 	;------PARAMETROS QUE RECIBEN
 		bmp         		 db    	0FFh Dup (?)
 		archivo     		 db    	'archivo.txt'
@@ -45,18 +58,6 @@ SDato Segment para public 'Data'
 		error4     	        db  	'No se pudo abrir$'
 		filehandle 		    dw 		?
 		txthandle		    dw		?
-		
-	;----- VARIABLES DEL BMP
-	
-		Header				label 	word
-		HeadBuff    		db 		54 dup('H')
-		palBuff     		db 		1024 dup('P')
-		ScrLine     		db 		640 dup(0)
-		BMPStart    		db 		'BM'
-
-		PalSize     		dw 		?
-		BMPHeight   		dw 		?
-		BMPWidth    		dw 		?
 
 SDato EndS
 
@@ -94,7 +95,7 @@ GetCommanderLine EndP
 
 
 
-;------ EALUA CADA PARAMETRO
+;------ EVALUA CADA PARAMETRO
 
 EvalLineCommand Proc Far
 		mov	cl,[si]       			;mueve al cl el caracter a evaluar
@@ -178,35 +179,100 @@ openFile endp
 
 ;================ LEE EL ENCABEZADO DEL BMP ================
 
-ReadHeader proc							
-		mov	ah,3fh
-		mov	cx,54
-		mov	dx,offset Header
-		int	21h
+ReadHeader proc	
 
-		jc		RHdone					     ; Si no se leyeron los 54 bytes del encabezado, terminar.
+		mov	  ah,3fh
+		mov	  cx,54
+		mov	  dx,offset Header
+		int	  21h
 
-		mov	ax,header[0Ah]        	; AX = Desplazamiento de la direccion donde comienza la imagen
+		jc	  RHdone			        ; Si no se leyeron los 54 bytes del encabezado, terminar.
 
-		sub	ax,54                       	; Restar la longitud del encabezado de la imagen
+		mov	  ax,header[0Ah]        	; AX = Desplazamiento de la direccion donde comienza la imagen
+
+		sub	  ax,54                     ; Restar la longitud del encabezado de la imagen
 
 		; Dividir el resultado entre 4
-		shr 	ax,1
-		shr 	ax,1
-		mov	PalSize,ax					; Obtener el numero de colores del BMP
+		shr   ax,1
+		shr   ax,1
+		mov	  PalSize,ax					; Obtener el numero de colores del BMP
 		
 		; Guardar el ancho del BMP en BMPWidth
-		mov	ax,header[12h]
-		mov	BMPWidth,ax      
+		mov	  ax,header[12h]
+		mov	  BMPWidth,ax  
 		
 		; Guardar la altura del BMP en BMPHeight
-		mov	ax,header[16h]    
-		mov	BMPHeight,ax 
+		mov	  ax,header[16h]    
+		mov	  BMPHeight,ax 
 
 		RHdone:
 			ret
 			
 ReadHeader endp
+
+
+; ================ LEER LA PALETA DE VIDEO ================
+
+; Este procedimiento recorre el buffer de la paleta y 
+; envia informacion de la paleta a los registros de 
+; video. Se envia un byte a traves del puerto 3C8h que
+; contiene el primer indice a modificar de la paleta  
+; de colores. Despues, se envia informacion acerca de 
+; los colores (RGB) a traves del puerto 3C9h
+
+ReadPal proc
+		mov	ah,3fh
+		mov	cx,PalSize         ; Numero de colores de la paleta en CX
+		
+		; Multiplicar este numero por 4 para obtener tamanio de la paleta en bytes
+		shl	cx,1
+		shl	cx,1
+		
+		mov	dx,offset palBuff  ; Poner la paleta en el buffer
+		int	21h
+
+		; SI apunta al buffer que contiene a la paleta.
+		mov	si,offset palBuff
+		; Numero de colores a enviar en CX
+		mov	cx,PalSize
+		mov	dx,3c8h
+		; Comenzar en el color 0
+		mov	al,0
+		out	dx,al
+		; DX = 3C9h
+		inc	dx
+		sndLoop:
+			; Nota: los colores en un archivo BMP se guardan como
+			; BGR y no como RGB
+
+			; Obtener el valor para el rojo
+			mov	al,[si+2]
+			; El maximo es 255, pero el modo de video solamente
+			; permite valores hasta 63, por lo tanto dividimos 
+			; entre 4 para obtener un valor valido
+			shr	al,1
+			shr	al,1
+			; Mandar el valor del rojo por el puerto 3C9h
+			out	dx,al
+			; Obtener el valor para el verde
+			mov	al,[si+1]
+			shr	al,1
+			shr	al,1
+			; Mandar el valor del verde por el puerto
+			out	dx,al
+			; Obtener el valor para el azul
+			mov	al,[si]
+			shr	al,1
+			shr	al,1
+			; Enviarlo por el puerto
+			out	dx,al
+
+			; Apuntar al siguiente color
+			; (Hay un caracter nulo al final de cada color)
+			add	si,4
+			loop	sndLoop
+		ret
+ReadPal endp
 
 
 inicio:
@@ -216,7 +282,7 @@ inicio:
 		Push  	Ax
 
 		call	GetCommanderLine
-		push  	es                          ;Guarda el psps
+		push  	es                      ;Guarda el psps
 		push  	es
 		mov   	ax,SDato                ;Inicializa el seg de datos        
 		push  	ax
@@ -234,37 +300,37 @@ inicio:
 		call 	OpenFile
 		; ;call createFile
 		call 	ReadHeader
-		;call 	ReadPal
+		call 	ReadPal
 		;call writeFile
-		cmp 	instruction,'a'
-		je		a
-		cmp 	instruction,'r' ; por ahora pruebo con r aunque la idea es que lo despliegue normal
-		je		r
+		; cmp 	instruction,'a'
+		; je		a
+		; cmp 	instruction,'r' ; por ahora pruebo con r aunque la idea es que lo despliegue normal
+		; je		r
 		
-		a:
-			;call desesteg
-			jmp	 finish
-		r:
-			;call inverso
-			jmp  finish
-		d:
-			;call giroDer
-			jmp  finish
-		l:
-			;call giroIzq
-			jmp  finish
+		; a:
+		; 	;call desesteg
+		; 	jmp	 finish
+		; r:
+		; 	;call inverso
+		; 	jmp  finish
+		; d:
+		; 	;call giroDer
+		; 	jmp  finish
+		; l:
+		; 	;call giroIzq
+		; 	jmp  finish
 		
 		finish:
 			;call	movePointer
-			call	showBMP
-			mov		bx,filehandle
+			;call	showBMP
+			;mov		bx,filehandle
 			;call	closeFile
 
 			; Wait for key press
 			mov	ah,1
 			int	21h    
 		  
-			call   modeWrite
+			;call   modeWrite
 		 	jmp	   exit
 
 wrongCommand:                        ;Si el usuario digita un parametro erroneo entonces no entra a ningun cmp y cae aqui
