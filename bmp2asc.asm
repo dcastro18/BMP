@@ -3,12 +3,6 @@
 
 ; David Castro H - 2018105813
 
-; Forma de compilacion:                      
-;    Usando el turbo assembler de borland 4.  
-;     - tasm /zi /l bmp2asc[.asm]  
-;     - tasm /zi /l procBMP[.asm]              
-;     - tlink /v bmp2asc + procBMP [.oobj]                 
-
 ;------------------------------------------------------------------------------
 
 include macroBMP.cbc
@@ -28,17 +22,14 @@ SDato Segment para public 'Data'
 
 		Header				label 	word
 		HeadBuff    		db 		54 dup('H')
-		palBuff     		db 		1024 dup('P')
+		palBuff     		db 		16*4 dup('P')
 		ScrLine     		db 		640 dup(0)
 		ScrLine2     		db 		480 dup(0)
 		BMPStart    		db 		'BM'
 
 		PalSize     		dw 		?
 		BMPHeight   		dw 		?
-		BMPWidth    		dw 		?
-
-		gg 					db      'bm$'
-		
+		BMPWidth    		dw 		?		
 
 	;------PARAMETROS QUE RECIBEN
 		bmp         		 db    	0FFh Dup (?)
@@ -69,6 +60,10 @@ SDato Segment para public 'Data'
 		filehandle 		    dw 		?
 		txthandle		    dw		?
 
+		text3 db "A","$"
+		filename db "bmp2asc.txt",0
+		handler dw ?
+
 SDato EndS
 
 ;-------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -77,7 +72,8 @@ SCodigo Segment para public 'Code'
 		Assume CS:SCodigo, SS:SPila, DS:SDato
 
 
-;------ MUESTRA LA GUIA DE USUARIO
+
+;================ MUESTRA LA GUIA DE USUARIO ================
 
 showInfo Proc far                    
 		lea	dx,info0                  ;Mueve al dx el desplazamiento del msj que quiero mostrar en este caso la guia de usuario
@@ -85,7 +81,7 @@ showInfo Proc far
 showInfo EndP
 
 
-;------ LEE LA LINEA DE PARAMETROS
+;================ LEE LA LINEA DE PARAMETROS ================
 
 GetCommanderLine Proc Near
 		LongLC	EQU		80h                           ;apunta a la direccion del tamano de la linea de comandos(en 80h estara el tamano)
@@ -104,15 +100,16 @@ GetCommanderLine EndP
 
 
 
-;------ EVALUA CADA PARAMETRO
+
+;================ EVALUA LOS PARAMETROS ================
 
 EvalLineCommand Proc Far
 		mov	cl,[si]       			;mueve al cl el caracter a evaluar
 
-		cmp	cl,'a'
-		jz 	saveInstruction
 		cmp	cl,'r'
 		jz		saveInstruction
+		cmp	cl,'a'
+		jz 	    saveInstruction
 		cmp	cl,'i'
 		jz		saveInstruction
 		cmp	cl,'d'
@@ -124,10 +121,10 @@ EvalLineCommand Proc Far
 		cmp	cl,'H'
 		jz  	showInfo
 		cmp	cl,'p'
-		jz  	saveInstruction
+		jz  	showInfo
 
-		lea	dx,error0
-		jmp	print
+		;lea	dx,error0
+		;jmp	print
 		saveInstruction:
 			lea	di, instruction
 			mov	[di],cl
@@ -173,7 +170,9 @@ EvalLineCommand Proc Far
 			ret
 EvalLineCommand EndP
 
-;------ABRE EL ARCHIVO 
+
+
+;================ ABRE EL ARCHIVO ================
 
 openFile proc                      
 		mov	ah,3dh
@@ -186,6 +185,30 @@ openFile proc
 		mov	filehandle,ax
 		ret
 openFile endp
+
+
+;================ CIERRA EL ARCHIVO ================
+
+closeFile proc                    
+		mov	ah,3eh
+		int	21h
+		mov	dx, offset error3
+		jc 	print
+		ret
+closeFile endp
+
+;================ CREA EL ARCHIVO ================
+
+createFile proc                  
+		mov	ah,3ch              
+		mov	cx,64d                     ;tipo de archivo
+		lea	dx,archivo                 ;puntero al nombre del archivo
+		int	21h 
+		mov	dx, offset error1          ;guarda en el dx el msj de error por si falla
+		jc 	print                      ;si la bandera de acarreo esta en 1 va a la etiqueta que muestra el error que esta en dx
+		mov	txthandle,ax               ;sino establece el handle
+		ret
+createFile endp
 
 
 ;================ LEE EL ENCABEZADO DEL BMP ================
@@ -224,12 +247,6 @@ ReadHeader endp
 
 ; ================ LEER LA PALETA DE VIDEO ================
 
-; Este procedimiento recorre el buffer de la paleta y 
-; envia informacion de la paleta a los registros de 
-; video. Se envia un byte a traves del puerto 3C8h que
-; contiene el primer indice a modificar de la paleta  
-; de colores. Despues, se envia informacion acerca de 
-; los colores (RGB) a traves del puerto 3C9h
 
 ReadPal proc
 		mov	ah,3fh
@@ -253,14 +270,18 @@ ReadPal proc
 		; DX = 3C9h
 		inc	dx
 		sndLoop:
-		
+			; Nota: los colores en un archivo BMP se guardan como
+			; BGR y no como RGB
+
 			; Obtener el valor para el rojo
 			mov	 al,[si+2]
 			; El maximo es 255, pero el modo de video solamente
 			; permite valores hasta 63, por lo tanto dividimos 
 			; entre 4 para obtener un valor valido
+
 			shr	 al,1
 			shr	 al,1
+			
 			; Mandar el valor del rojo por el puerto 3C9h
 			out	 dx,al
 			; Obtener el valor para el verde
@@ -283,7 +304,7 @@ ReadPal proc
 		ret
 ReadPal endp
 
-;-- COLOCA EL PUNTERO PARA PINTAR
+;================ COLOCA EL PUNTERO EN EL ARCHIVO ================
 
 movePointer proc
 		mov	ah,42h
@@ -297,83 +318,9 @@ movePointer proc
 movePointer endp
 
 
-; --- PINTA LA IMAGEN
-; showBMP proc 
-; 		mov	cx,BMPHeight 
-; 		PrintBMPLoop:
-; 			dec	 cx
-; 			push cx
+;================ BMP INVERTIDO  ================
 
-; 			mov	    ah,3fh
-; 			mov	    bx,filehandle
-; 			mov	    cx,BMPWidth
-; 			mov	    dx,offset ScrLine
-; 			int	    21h
-			
-; 			mov	    si,offset ScrLine
-; 			pop	    dx	
-; 			mov	    cx,0
-; 			call	showLine
-; 			dec	    dx
-; 			cmp     cx,0
-; 			jz 	    ret1
-			
-; 			mov	    cx,0
-; 			call	showLine
-; 			push	dx
-; 			pop		cx
-; 			cmp		cx,0
-; 			jne 	PrintBMPLoop
-; 		ret1:
-; 			ret
-; showBMP endp 
-
-; showLine proc
-; 		mov	    ah,0ch              ;Modo pintar un pixel en cierta coordenada
-; 		mov	    al,[si]
-; 		push    ax
-; 		and		al,00001111b
-; 		int		10h
-
-; 		inc		cx
-; 		pop		ax
-; 		and		al,11110000b        ;agarra e l
-; 		shr		al,4                 
-; 		int		10h                 
-
-; 		inc		cx
-; 		inc		si
-; 		cmp		cx,BMPWidth
-; 		jne		showLine
-; 		ret
-; showLine endp
-
-;------CIERRA EL ARCHIVO
-
-closeFile proc                    
-		mov	ah,3eh
-		int	21h
-		mov	dx, offset error3
-		jc 	print
-		ret
-closeFile endp
-
-;------CREA EL ARCHIVO
-
-createFile proc                  
-		mov	ah,3ch              
-		mov	cx,64d                     ;tipo de archivo
-		lea	dx,archivo                 ;puntero al nombre del archivo
-		int	21h 
-		mov	dx, offset error1          ;guarda en el dx el msj de error por si falla
-		jc 	print                      ;si la bandera de acarreo esta en 1 va a la etiqueta que muestra el error que esta en dx
-		mov	txthandle,ax               ;sino establece el handle
-		ret
-createFile endp
-
-
-; --- 	GIROS
-showBMPInv proc 
+showBMPInv proc
 		mov	cx,0
 		PrintBMPINVLoop:
 			inc	 cx
@@ -391,7 +338,7 @@ showBMPInv proc
 			call	showLineInv
 			inc	    dx
 			cmp     cx,0
-			jz 	    ret1
+			jz 	    retAsc
 			
 			mov	    cx,0
 			call	showLineInv
@@ -399,7 +346,7 @@ showBMPInv proc
 			pop		cx
 			cmp		cx,BMPHeight 
 			jne 	PrintBMPINVLoop
-		ret1:
+		retAsc:
 			ret
 showBMPInv endp 
 
@@ -424,7 +371,9 @@ showLineInv proc
 showLineInv endp
 
 
-showBMPDer proc ; --- 	DERECHA
+;================ BMP DERECHA ================
+
+showBMPDer proc 
 	mov	cx,BMPHeight
 		PrintBMPDerLoop:
 			dec	 cx
@@ -480,8 +429,9 @@ showLineDer proc
 		ret
 showLineDer endp
 
+;================ BMP IZQUIERDA ================
 
-showBMPIzq proc ; --- 	DERECHA
+showBMPIzq proc
 	mov	cx,0
 		PrintBMPIzqLoop:
 			inc	 cx
@@ -492,7 +442,6 @@ showBMPIzq proc ; --- 	DERECHA
 			mov	    cx,BMPWidth
 			mov	    dx,offset ScrLine
 			int	    21h
-
 			
 			mov	    si,offset ScrLine
 			pop	    cx	
@@ -529,6 +478,238 @@ showLineizq proc
 showLineizq endp
 
 
+;================ ESCRIBE UN CARACTER EN EL ARCHIVO ================
+
+writeChar proc
+
+	push ax
+	push bx
+	push cx
+	push dx
+	;CREATE FILE.
+	; mov  ah, 3ch
+	; mov  cx, 0
+	; mov  dx, offset filename
+	; int  21h  
+
+	mov ah, 3dh
+    mov al, 2
+    mov dx, offset filename
+    int 21h
+
+	;PRESERVE FILE HANDLER RETURNED.
+	mov  handler, ax
+
+	mov bx,ax
+	mov ah, 42h  ; "lseek"
+    mov al, 2    ; position relative to end of file
+    mov cx, 0    ; offset MSW
+    mov dx, 0    ; offset LSW
+    int 21h
+
+	;WRITE STRING.
+	mov  ah, 40h
+	mov  bx, handler
+	mov  cx, 1  ;STRING LENGTH.
+	mov  dl, text3
+	int  21h
+
+	;CLOSE FILE (OR DATA WILL BE LOST).
+	mov  ah, 3eh
+	mov  bx, handler
+	int  21h 
+
+	pop ax
+	pop bx
+	pop cx
+	pop dx
+
+	ret
+writeChar endp
+
+
+;================ CARACTER SEGUN EL COLOR ================
+
+color proc
+	mov text3,al
+
+	cmp text3,00h
+	je  Black
+
+	cmp text3,01h
+	je  Blue
+
+	cmp text3,02h
+	je  Green
+
+	Black:
+		mov text3,65d
+		call writeChar
+		ret
+	Blue:  
+		mov text3,175d
+		call writeChar
+		ret
+	Green:  
+		mov text3,175d
+		call writeChar
+		ret
+
+	cmp text3,03h
+	je  Cyan
+
+	cmp text3,04h
+	je  Red
+
+	cmp text3,05h
+	je  Magenta
+
+	Cyan: 
+		mov text3,175d
+		call writeChar
+		ret
+	Red:  
+		mov text3,175d
+		call writeChar
+		ret
+	Magenta:  
+		mov text3,175d
+		call writeChar
+		ret
+
+	cmp text3,06h
+	je  Brown
+
+	Brown:  
+		mov text3,175d
+		call writeChar
+		ret
+
+	cmp text3,07h
+	je  LightGray
+
+	LightGray:  
+		mov text3,175d
+		call writeChar
+		ret
+
+	cmp text3,08h
+	je  DarkGray
+
+	cmp text3,09h
+	je  LightBlue
+
+	cmp text3,0Ah
+	je  LightGreen
+
+	DarkGray:  
+		mov text3,175d
+		call writeChar
+		ret
+	LightBlue:  
+		mov text3,175d
+		call writeChar
+		ret
+	LightGreen: 
+		mov text3,175d
+		call writeChar
+		ret
+
+	cmp text3,0Bh
+	je  LightCyan
+
+	cmp text3,0Ch
+	je  LightRed
+
+	cmp text3,0Dh
+	je  LightMagenta
+
+	cmp text3,0Eh
+	je  Yellow
+
+	cmp text3,0Fh
+	je  White
+		
+	LightCyan: 
+		mov text3,175d
+		call writeChar
+		ret
+	LightRed: 
+		mov text3,175d
+		call writeChar
+		ret
+	LightMagenta: 
+		mov text3,175d
+		call writeChar
+		ret
+	Yellow: 
+		mov text3,175d
+		call writeChar
+		ret
+	White:
+		mov text3,96d
+		call writeChar
+		ret
+	
+color endp
+
+
+prueba:; proc 
+		mov	cx,BMPHeight 
+		PrintBMPLoop:
+			dec	 cx
+			push cx
+
+			mov	    ah,3fh
+			mov	    bx,filehandle
+			mov	    cx,BMPWidth
+			mov	    dx,offset ScrLine
+			int	    21h
+			
+			mov	    si,offset ScrLine
+			pop	    dx	
+			mov	    cx,0
+			jmp     prueba2
+			dec	    dx
+			cmp     cx,0
+			jz 	    ret1
+			
+			mov	    cx,0
+			jmp     prueba2
+
+			push	dx
+			pop		cx
+			cmp		cx,0
+			jne 	PrintBMPLoop
+		ret1:
+			ret
+;prueba endp 
+
+prueba2: ;proc
+		mov	    ah,0ch              ;Modo pintar un pixel en cierta coordenada
+		mov	    al,[si]
+		push    ax
+		and		al,00001111b
+		int		10h
+
+		;aca es donde hago el ascii
+		;call    color
+		jmp color
+
+		inc		cx
+		pop		ax
+		and		al,11110000b        ;agarra e l
+		shr		al,4                 
+		int		10h    
+
+		call    color             
+
+		inc		cx
+		inc		si
+		cmp		cx,BMPWidth
+		jne		prueba2
+		;ret
+;prueba2 endp
 
 
 inicio:
@@ -551,35 +732,54 @@ inicio:
 		mov		ah,00
 		mov 	al,12h
 		int 	10h
-
 		
-		call 	OpenFile
-		;call createFile
-		call 	ReadHeader
-		call 	ReadPal
-		;call writeFile
 		cmp 	instruction,'a'
 		je		a
-		cmp 	instruction,'r' ; por ahora pruebo con r aunque la idea es que lo despliegue normal
+		cmp 	instruction,'r'
 		je		r
 		cmp 	instruction,'d'
 		je		d
 		cmp 	instruction,'i'
 		je		i
+		cmp 	instruction,'p'
+		je		p
 
 		a:
-			;call ascii
-			jmp	 finish
+			call 	OpenFile
+			call 	ReadHeader
+			call 	ReadPal
+			call    movePointer
+
+			jmp     prueba
+			jmp	    finish
+		p:
+			call 	OpenFile
+			call 	ReadHeader
+			call 	ReadPal
+			jmp     prueba
+			jmp	    finish
 		r:
+			call 	OpenFile
+			call 	ReadHeader
+			call 	ReadPal
+
 			call   movePointer
 			call   showBMPInv
 			jmp    finish
 		d:
+			call 	OpenFile
+			call 	ReadHeader
+			call 	ReadPal
+
 			call   movePointer
 			call   showBMPDer
 
 			jmp    finish
 		i:
+			call 	OpenFile
+			call 	ReadHeader
+			call 	ReadPal
+
 			call   movePointer
 			call   showBMPIzq
 
@@ -596,9 +796,9 @@ inicio:
 			call   modeWrite
 		 	jmp	   exit
 
-wrongCommand:                        ;Si el usuario digita un parametro erroneo entonces no entra a ningun cmp y cae aqui
-		mov	dx,offset error0         
-		jmp	print                     
+wrongCommand:                           ;Si el usuario digita un parametro erroneo entonces no entra a ningun cmp y cae aqui
+		mov	dx,offset error0            ;Mueve al dx el desplazamiento del msj que quiero imprimir
+		jmp	print                       ;y salta a la etiqueta print para que lo imprima
 
 
 End inicio 
