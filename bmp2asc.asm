@@ -68,9 +68,9 @@ SDato Segment para public 'Data'
 		filehandle 		    dw 		?
 		txthandle		    dw		?
 
-		text3 db "A","$"
-		filename db "bmp2asc.txt",0
-		handler dw ?
+		char 				db 		'?'
+		filename			db 		"bmp2asc.txt",0
+		handler 			dw 		?
 
 SDato EndS
 
@@ -519,7 +519,7 @@ writeChar proc
 	mov  ah, 40h
 	mov  bx, handler
 	mov  cx, 1  ;STRING LENGTH.
-	mov  dl, text3
+	mov  dl, char
 	int  21h
 
 	;CLOSE FILE (OR DATA WILL BE LOST).
@@ -539,132 +539,144 @@ writeChar endp
 ;================ CARACTER SEGUN EL COLOR ================
 
 color proc
-	mov text3,al
+	mov char,al
 
-	cmp text3,00h
+	cmp char,00h
 	je  Black
 
-	cmp text3,01h
+	cmp char,01h
 	je  Blue
 
-	cmp text3,02h
+	cmp char,02h
 	je  Green
+	jne Puente1
 
-	Black:
-		mov text3,65d
-		call writeChar
-		ret
-	Blue:  
-		mov text3,175d
-		call writeChar
-		ret
-	Green:  
-		mov text3,175d
-		call writeChar
-		ret
+	
+		Black:
+			mov char,65d
+			call writeChar
+			ret
+		Blue:  
+			mov char,175d
+			call writeChar
+			ret
+		Green:  
+			mov char,175d
+			call writeChar
+			ret
 
-	cmp text3,03h
-	je  Cyan
+	Puente1:
+		cmp char,03h
+		je  Cyan
 
-	cmp text3,04h
-	je  Red
+		cmp char,04h
+		je  Red
 
-	cmp text3,05h
-	je  Magenta
+		cmp char,05h
+		je  Magenta
+		jne Puente2
 
-	Cyan: 
-		mov text3,175d
-		call writeChar
-		ret
-	Red:  
-		mov text3,175d
-		call writeChar
-		ret
-	Magenta:  
-		mov text3,175d
-		call writeChar
-		ret
+		Cyan: 
+			mov char,175d
+			call writeChar
+			ret
+		Red:  
+			mov char,175d
+			call writeChar
+			ret
+		Magenta:  
+			mov char,175d
+			call writeChar
+			ret
 
-	cmp text3,06h
-	je  Brown
+	Puente2:
+		cmp char,06h
+		je  Brown
 
-	Brown:  
-		mov text3,175d
-		call writeChar
-		ret
+		cmp char,07h
+		je  LightGray
 
-	cmp text3,07h
-	je  LightGray
+		cmp char,08h
+		je  DarkGray
+		jne Puente3
 
-	LightGray:  
-		mov text3,175d
-		call writeChar
-		ret
+		Brown:  
+			mov char,175d
+			call writeChar
+			ret
+		LightGray:  
+			mov char,175d
+			call writeChar
+			ret
+		DarkGray:  
+			mov char,175d
+			call writeChar
+			ret
+	
+	Puente3:
+		cmp char,09h
+		je  LightBlue
 
-	cmp text3,08h
-	je  DarkGray
+		cmp char,0Ah
+		je  LightGreen
 
-	cmp text3,09h
-	je  LightBlue
+		cmp char,0Bh
+		je  LightCyan
 
-	cmp text3,0Ah
-	je  LightGreen
+		cmp char,0Ch
+		je  LightRed
+		jne Puente4
 
-	DarkGray:  
-		mov text3,175d
-		call writeChar
-		ret
-	LightBlue:  
-		mov text3,175d
-		call writeChar
-		ret
-	LightGreen: 
-		mov text3,175d
-		call writeChar
-		ret
+		LightBlue:  
+			mov char,175d
+			call writeChar
+			ret
+		LightGreen: 
+			mov char,175d
+			call writeChar
+			ret
+		LightCyan: 
+			mov char,175d
+			call writeChar
+			ret
+		LightRed: 
+			mov char,175d
+			call writeChar
+			ret
+	Puente4:
 
-	cmp text3,0Bh
-	je  LightCyan
+		cmp char,0Dh
+		je  LightMagenta
 
-	cmp text3,0Ch
-	je  LightRed
+		cmp char,0Eh
+		je  Yellow
 
-	cmp text3,0Dh
-	je  LightMagenta
-
-	cmp text3,0Eh
-	je  Yellow
-
-	cmp text3,0Fh
-	je  White
+		cmp char,0Fh
+		je  White
 		
-	LightCyan: 
-		mov text3,175d
-		call writeChar
-		ret
-	LightRed: 
-		mov text3,175d
-		call writeChar
-		ret
-	LightMagenta: 
-		mov text3,175d
-		call writeChar
-		ret
-	Yellow: 
-		mov text3,175d
-		call writeChar
-		ret
-	White:
-		mov text3,96d
-		call writeChar
-		ret
+		LightMagenta: 
+			mov char,175d
+			call writeChar
+			ret
+		Yellow: 
+			mov char,175d
+			call writeChar
+			ret
+		White:
+			mov char,96d
+			call writeChar
+			ret
 	
 color endp
 
 
-prueba:; proc 
+prueba proc 
 		mov	cx,BMPHeight 
 		PrintBMPLoop:
+
+			mov char,10d
+			call writeChar
+
 			dec	 cx
 			push cx
 
@@ -677,13 +689,14 @@ prueba:; proc
 			mov	    si,offset ScrLine
 			pop	    dx	
 			mov	    cx,0
-			jmp     prueba2
+			call    prueba2
+
 			dec	    dx
 			cmp     cx,0
 			jz 	    ret1
 			
 			mov	    cx,0
-			jmp     prueba2
+			call     prueba2
 
 			push	dx
 			pop		cx
@@ -691,9 +704,9 @@ prueba:; proc
 			jne 	PrintBMPLoop
 		ret1:
 			ret
-;prueba endp 
+prueba endp 
 
-prueba2: ;proc
+prueba2 proc
 		mov	    ah,0ch              ;Modo pintar un pixel en cierta coordenada
 		mov	    al,[si]
 		push    ax
@@ -702,7 +715,6 @@ prueba2: ;proc
 
 		;aca es donde hago el ascii
 		;call    color
-		jmp color
 
 		inc		cx
 		pop		ax
@@ -716,8 +728,8 @@ prueba2: ;proc
 		inc		si
 		cmp		cx,BMPWidth
 		jne		prueba2
-		;ret
-;prueba2 endp
+		ret
+prueba2 endp
 
 
 inicio:
