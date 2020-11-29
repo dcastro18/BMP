@@ -3,6 +3,14 @@
 
 ; David Castro H - 2018105813
 
+
+; Forma de compilacion:                      
+;    Usando el turbo assembler de borland 4.  
+;     - tasm /zi /l bmp2asc[.asm]  
+;     - tasm /zi /l procBMP[.asm]              
+;     - tlink /v bmp2asc + procBMP [.oobj]                 
+
+
 ;------------------------------------------------------------------------------
 
 include macroBMP.cbc
